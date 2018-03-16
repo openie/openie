@@ -1022,6 +1022,18 @@ def skia_includes(skia):
 
 set_config('SKIA_INCLUDES', skia_includes)
 
+# Open IE
+# ==============================================================
+option('--with-msie-version', nargs=1, help='Set MSIE version for Open IE.')
+
+@depends('--with-msie-version')
+def msie_version(value):
+    if value and value[0] == '8':
+        return True
+
+set_config('MOZ_MSIE_VERSION', msie_version)
+set_define('MOZ_MSIE_VERSION', msie_version)
+
 # Build Freetype in the tree
 # ==============================================================
 @depends(target, skia_pdf)
