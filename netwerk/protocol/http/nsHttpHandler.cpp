@@ -232,7 +232,11 @@ nsHttpHandler::nsHttpHandler()
     , mLastUniqueID(NowInSeconds())
     , mSessionStartTime(0)
     , mLegacyAppName("Mozilla")
+#ifdef MOZ_MSIE_VERSION
+    , mLegacyAppVersion("4.0")
+#else
     , mLegacyAppVersion("5.0")
+#endif
     , mProduct("Gecko")
     , mCompatFirefoxEnabled(false)
     , mUserAgentIsDirty(true)
@@ -934,6 +938,9 @@ nsHttpHandler::BuildUserAgent()
 
     // Application comment
     mUserAgent += '(';
+#ifdef MOZ_MSIE_VERSION
+    mUserAgent.AppendLiteral("compatible; MSIE 8.0; ");
+#endif
 #ifndef UA_SPARE_PLATFORM
     if (!mPlatform.IsEmpty()) {
       mUserAgent += mPlatform;
@@ -952,9 +959,16 @@ nsHttpHandler::BuildUserAgent()
         mUserAgent += mDeviceModelId;
         mUserAgent.AppendLiteral("; ");
     }
+#ifdef MOZ_MSIE_VERSION
+    mUserAgent.AppendLiteral("Trident/4.0");
+#else
     mUserAgent += mMisc;
+#endif
     mUserAgent += ')';
 
+#ifdef MOZ_MSIE_VERSION
+    mUserAgent.AppendLiteral(" OpenIE/0.1");
+#else
     // Product portion
     mUserAgent += ' ';
     mUserAgent += mProduct;
@@ -974,6 +988,7 @@ nsHttpHandler::BuildUserAgent()
         mUserAgent += '/';
         mUserAgent += mAppVersion;
     }
+#endif
 }
 
 #ifdef XP_WIN
