@@ -1028,11 +1028,39 @@ option('--with-msie-version', nargs=1, help='Set MSIE version for Open IE.')
 
 @depends('--with-msie-version')
 def msie_version(value):
+    if value and (value[0] == '8' or value[0] == '9' or value[0] == '10' or value[0] == '11'):
+        return True
+
+@depends('--with-msie-version')
+def msie_target_8(value):
     if value and value[0] == '8':
+        return True
+
+@depends('--with-msie-version')
+def msie_target_9(value):
+    if value and value[0] == '9':
+        return True
+
+@depends('--with-msie-version')
+def msie_target_10(value):
+    if value and value[0] == '10':
+        return True
+
+@depends('--with-msie-version')
+def msie_target_11(value):
+    if value and value[0] == '11':
         return True
 
 set_config('MOZ_MSIE_VERSION', msie_version)
 set_define('MOZ_MSIE_VERSION', msie_version)
+set_config('MOZ_MSIE_TARGET_8', msie_target_8)
+set_define('MOZ_MSIE_TARGET_8', msie_target_8)
+set_config('MOZ_MSIE_TARGET_9', msie_target_9)
+set_define('MOZ_MSIE_TARGET_9', msie_target_9)
+set_config('MOZ_MSIE_TARGET_10', msie_target_10)
+set_define('MOZ_MSIE_TARGET_10', msie_target_10)
+set_config('MOZ_MSIE_TARGET_11', msie_target_11)
+set_define('MOZ_MSIE_TARGET_11', msie_target_11)
 
 # Build Freetype in the tree
 # ==============================================================
