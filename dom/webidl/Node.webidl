@@ -59,7 +59,11 @@ interface Node : EventTarget {
 
   [SetterThrows, Pure]
            attribute DOMString? nodeValue;
+#ifdef MOZ_MSIE_TARGET_8
+  [ChromeOnly, Throws, Pure]
+#else
   [Throws, Pure]
+#endif
            attribute DOMString? textContent;
   [Throws]
   Node insertBefore(Node node, Node? child);
