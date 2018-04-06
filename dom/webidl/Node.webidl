@@ -59,7 +59,11 @@ interface Node : EventTarget {
 
   [CEReactions, SetterThrows, Pure]
            attribute DOMString? nodeValue;
+#ifdef MOZ_MSIE_TARGET_8
+  [ChromeOnly, CEReactions, SetterThrows, GetterCanOOM,
+#else
   [CEReactions, SetterThrows, GetterCanOOM,
+#endif
    SetterNeedsSubjectPrincipal=NonSystem, Pure]
            attribute DOMString? textContent;
   [CEReactions, Throws]
