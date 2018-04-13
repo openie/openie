@@ -193,6 +193,18 @@ public:
 
   void GetInnerText(mozilla::dom::DOMString& aValue, mozilla::ErrorResult& aError);
   void SetInnerText(const nsAString& aValue);
+#ifdef MOZ_MSIE_VERSION
+  void GetOuterText(nsAString& aTextContent,
+                      mozilla::ErrorResult& aError)
+  {
+    nsINode::GetTextContent(aTextContent, aError);
+  }
+  void SetOuterText(const nsAString& aTextContent,
+                      mozilla::ErrorResult& aError)
+  {
+    mozilla::dom::Element::SetOuterHTML(aTextContent, aError);
+  }
+#endif
 
   /**
    * Determine whether an attribute is an event (onclick, etc.)
