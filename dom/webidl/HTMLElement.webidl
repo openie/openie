@@ -19,8 +19,10 @@ interface HTMLElement : Element {
   //         attribute boolean translate;
   [SetterThrows, Pure]
            attribute DOMString dir;
+#if !defined(MOZ_MSIE_TARGET_8) && !defined(MOZ_MSIE_TARGET_9) && !defined(MOZ_MSIE_TARGET_10)
   [Constant]
   readonly attribute DOMStringMap dataset;
+#endif
 
   [GetterThrows, Pure, TreatNullAs=EmptyString]
            attribute DOMString innerText;

@@ -29,8 +29,10 @@ interface Element : Node {
            attribute DOMString id;
   [Pure]
            attribute DOMString className;
+#if !defined(MOZ_MSIE_TARGET_8) && !defined(MOZ_MSIE_TARGET_9)
   [Constant, PutForwards=value]
   readonly attribute DOMTokenList classList;
+#endif
 
   [SameObject]
   readonly attribute NamedNodeMap attributes;
