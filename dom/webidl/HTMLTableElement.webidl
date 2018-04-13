@@ -37,6 +37,10 @@ interface HTMLTableElement : HTMLElement {
   void deleteRow(long index);
   //         attribute boolean sortable;
   //void stopSorting();
+#ifdef MOZ_MSIE_VERSION
+  [Throws]
+  HTMLElement moveRow(optional long iSource = -1, optional long iTarget = -1);
+#endif
 };
 
 partial interface HTMLTableElement {

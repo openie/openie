@@ -22,7 +22,11 @@ interface HTMLElement : Element {
   //         attribute boolean translate;
   [CEReactions, SetterThrows, Pure]
            attribute DOMString dir;
+#if defined(MOZ_MSIE_TARGET_8) || defined(MOZ_MSIE_TARGET_9) || defined(MOZ_MSIE_TARGET_10)
+  [ChromeOnly, Constant]
+#else
   [Constant]
+#endif
   readonly attribute DOMStringMap dataset;
 
   [CEReactions, GetterThrows, Pure, TreatNullAs=EmptyString]

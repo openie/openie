@@ -354,7 +354,10 @@ GENERATED_WEBIDL_FILES = [
 ]
 
 PREPROCESSED_WEBIDL_FILES = [
+    'Element.webidl',
     'HTMLElement.webidl',
+    'HTMLTableElement.webidl',
+    'HTMLTableSectionElement.webidl',
     'Node.webidl',
     'Window.webidl',
 ]
@@ -488,7 +491,6 @@ WEBIDL_FILES = [
     'DOMTokenList.webidl',
     'DragEvent.webidl',
     'DynamicsCompressorNode.webidl',
-    'Element.webidl',
     'Event.webidl',
     'EventHandler.webidl',
     'EventListener.webidl',
@@ -594,9 +596,7 @@ WEBIDL_FILES = [
     'HTMLTableCaptionElement.webidl',
     'HTMLTableCellElement.webidl',
     'HTMLTableColElement.webidl',
-    'HTMLTableElement.webidl',
     'HTMLTableRowElement.webidl',
-    'HTMLTableSectionElement.webidl',
     'HTMLTemplateElement.webidl',
     'HTMLTextAreaElement.webidl',
     'HTMLTimeElement.webidl',

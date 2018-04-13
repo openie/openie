@@ -879,6 +879,119 @@ HTMLTableElement::DeleteRow(int32_t aIndex, ErrorResult& aError)
   row->RemoveFromParent();
 }
 
+#ifdef MOZ_MSIE_VERSION
+already_AddRefed<nsGenericHTMLElement>
+HTMLTableElement::MoveRow(int32_t aISource, int32_t aITarget, ErrorResult& aError)
+{
+  RefPtr<nsGenericHTMLElement> newRow;
+  {
+    int32_t aIndex = aISource;
+    if (aIndex < -1) {
+      aError.Throw(NS_ERROR_DOM_INDEX_SIZE_ERR);
+      return nullptr;
+    }
+
+    nsIHTMLCollection* rows = Rows();
+    uint32_t refIndex;
+    if (aIndex == -1) {
+      refIndex = rows->Length();
+      if (refIndex == 0) {
+        return nullptr;
+      }
+
+      --refIndex;
+    } else {
+      refIndex = (uint32_t)aIndex;
+    }
+
+    newRow = (nsGenericHTMLElement*) rows->GetElementAt(refIndex);
+    if (!newRow) {
+      aError.Throw(NS_ERROR_DOM_INDEX_SIZE_ERR);
+      return nullptr;
+    }
+
+    newRow->RemoveFromParent();
+  }
+  {
+    int32_t aIndex = aITarget;
+    if (aIndex < -1) {
+      aError.Throw(NS_ERROR_DOM_INDEX_SIZE_ERR);
+      return nullptr;
+    }
+
+    nsIHTMLCollection* rows = Rows();
+    uint32_t rowCount = rows->Length();
+    if ((uint32_t)aIndex > rowCount && aIndex != -1) {
+      aError.Throw(NS_ERROR_DOM_INDEX_SIZE_ERR);
+      return nullptr;
+    }
+
+    // use local variable refIndex so we can remember original aIndex
+    uint32_t refIndex = (uint32_t)aIndex;
+
+    if (rowCount > 0) {
+      if (refIndex == rowCount || aIndex == -1) {
+        // we set refIndex to the last row so we can get the last row's
+        // parent we then do an AppendChild below if (rowCount<aIndex)
+
+        refIndex = rowCount - 1;
+      }
+
+      RefPtr<Element> refRow = rows->Item(refIndex);
+      nsCOMPtr<nsINode> parent = refRow->GetParentNode();
+      // If aIndex is -1 or equal to the number of rows, the new row
+      // is appended.
+      if (aIndex == -1 || uint32_t(aIndex) == rowCount) {
+        parent->AppendChild(*newRow, aError);
+      } else {
+        // insert the new row before the reference row we found above
+        parent->InsertBefore(*newRow, refRow, aError);
+      }
+
+      if (aError.Failed()) {
+        return nullptr;
+      }
+    } else {
+      // the row count was 0, so
+      // find the last row group and insert there as first child
+      nsCOMPtr<nsIContent> rowGroup;
+      for (nsIContent* child = nsINode::GetLastChild();
+         child;
+         child = child->GetPreviousSibling()) {
+        if (child->IsHTMLElement(nsGkAtoms::tbody)) {
+          rowGroup = child;
+          break;
+        }
+      }
+
+      if (!rowGroup) { // need to create a TBODY
+        RefPtr<mozilla::dom::NodeInfo> nodeInfo;
+        nsContentUtils::QNameChanged(mNodeInfo, nsGkAtoms::tbody,
+                                    getter_AddRefs(nodeInfo));
+
+        rowGroup = NS_NewHTMLTableSectionElement(nodeInfo.forget());
+        if (rowGroup) {
+          aError = AppendChildTo(rowGroup, true);
+          if (aError.Failed()) {
+            return nullptr;
+          }
+        }
+      }
+
+      if (rowGroup) {
+        HTMLTableSectionElement* section =
+          static_cast<HTMLTableSectionElement*>(rowGroup.get());
+        nsIHTMLCollection* rows = section->Rows();
+        nsCOMPtr<nsINode> refNode = rows->Item(0);
+        rowGroup->InsertBefore(*newRow, refNode, aError);
+      }
+    }
+
+    return newRow.forget();
+  }
+}
+#endif
+
 bool
 HTMLTableElement::ParseAttribute(int32_t aNamespaceID,
                                  nsAtom* aAttribute,
