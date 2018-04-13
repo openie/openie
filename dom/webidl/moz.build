@@ -9,6 +9,7 @@ GENERATED_WEBIDL_FILES = [
 ]
 
 PREPROCESSED_WEBIDL_FILES = [
+    'Element.webidl',
     'HTMLElement.webidl',
     'Navigator.webidl',
     'Node.webidl',
@@ -133,7 +134,6 @@ WEBIDL_FILES = [
     'Downloads.webidl',
     'DragEvent.webidl',
     'DynamicsCompressorNode.webidl',
-    'Element.webidl',
     'Event.webidl',
     'EventHandler.webidl',
     'EventListener.webidl',
