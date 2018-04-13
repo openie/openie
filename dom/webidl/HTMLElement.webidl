@@ -69,6 +69,10 @@ interface HTMLElement : Element {
            attribute EventHandler oncopy;
            attribute EventHandler oncut;
            attribute EventHandler onpaste;
+#ifdef MOZ_MSIE_VERSION
+  [Throws, Pure, TreatNullAs=EmptyString]
+           attribute DOMString outerText;
+#endif
 };
 
 // http://dev.w3.org/csswg/cssom-view/#extensions-to-the-htmlelement-interface
