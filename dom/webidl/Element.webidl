@@ -29,7 +29,11 @@ interface Element : Node {
            attribute DOMString id;
   [CEReactions, Pure]
            attribute DOMString className;
+#if defined(MOZ_MSIE_TARGET_8) || defined(MOZ_MSIE_TARGET_9)
+  [ChromeOnly, Constant, PutForwards=value]
+#else
   [Constant, PutForwards=value]
+#endif
   readonly attribute DOMTokenList classList;
 
   [SameObject]

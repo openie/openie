@@ -18,6 +18,10 @@ interface HTMLTableSectionElement : HTMLElement {
   HTMLElement insertRow(optional long index = -1);
   [CEReactions, Throws]
   void deleteRow(long index);
+#ifdef MOZ_MSIE_VERSION
+  [Throws]
+  HTMLElement moveRow(optional long iSource = -1, optional long iTarget = -1);
+#endif
 };
 
 partial interface HTMLTableSectionElement {
