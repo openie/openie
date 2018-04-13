@@ -68,6 +68,10 @@ interface HTMLElement : Element {
   // styling
   [PutForwards=cssText, Constant]
   readonly attribute CSSStyleDeclaration style;
+#ifdef MOZ_MSIE_VERSION
+  [Throws, Pure, TreatNullAs=EmptyString]
+           attribute DOMString outerText;
+#endif
 };
 
 // http://dev.w3.org/csswg/cssom-view/#extensions-to-the-htmlelement-interface
