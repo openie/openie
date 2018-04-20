@@ -131,6 +131,70 @@ HTMLTableSectionElement::DeleteRow(int32_t aValue, ErrorResult& aError)
   nsINode::RemoveChild(*row, aError);
 }
 
+#ifdef MOZ_MSIE_VERSION
+already_AddRefed<nsGenericHTMLElement>
+HTMLTableSectionElement::MoveRow(int32_t aISource, int32_t aITarget, ErrorResult& aError)
+{
+  RefPtr<nsGenericHTMLElement> rowContent;
+  {
+    int32_t aValue = aISource;
+    if (aValue < -1) {
+      aError.Throw(NS_ERROR_DOM_INDEX_SIZE_ERR);
+      return nullptr;
+    }
+
+    nsIHTMLCollection* rows = Rows();
+
+    uint32_t refIndex;
+    if (aValue == -1) {
+      refIndex = rows->Length();
+      if (refIndex == 0) {
+        return nullptr;
+      }
+
+      --refIndex;
+    }
+    else {
+      refIndex = (uint32_t)aValue;
+    }
+
+    nsINode* row = rows->Item(refIndex);
+    if (!row) {
+      aError.Throw(NS_ERROR_DOM_INDEX_SIZE_ERR);
+      return nullptr;
+    }
+
+    nsINode::RemoveChild(*row, aError);
+    rowContent = (nsGenericHTMLElement*) row;
+  }
+  {
+    int32_t aIndex = aITarget;
+    if (aIndex < -1) {
+      aError.Throw(NS_ERROR_DOM_INDEX_SIZE_ERR);
+      return nullptr;
+    }
+
+    nsIHTMLCollection* rows = Rows();
+
+    uint32_t rowCount = rows->Length();
+    if (aIndex > (int32_t)rowCount) {
+      aError.Throw(NS_ERROR_DOM_INDEX_SIZE_ERR);
+      return nullptr;
+    }
+
+    bool doInsert = (aIndex < int32_t(rowCount)) && (aIndex != -1);
+
+    if (doInsert) {
+      nsCOMPtr<nsINode> refNode = rows->Item(aIndex);
+      nsINode::InsertBefore(*rowContent, refNode, aError);
+    } else {
+      nsINode::AppendChild(*rowContent, aError);
+    }
+    return rowContent.forget();
+  }
+}
+#endif
+
 bool
 HTMLTableSectionElement::ParseAttribute(int32_t aNamespaceID,
                                         nsIAtom* aAttribute,

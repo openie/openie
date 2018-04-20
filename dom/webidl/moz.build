@@ -11,6 +11,8 @@ GENERATED_WEBIDL_FILES = [
 PREPROCESSED_WEBIDL_FILES = [
     'Element.webidl',
     'HTMLElement.webidl',
+    'HTMLTableElement.webidl',
+    'HTMLTableSectionElement.webidl',
     'Navigator.webidl',
     'Node.webidl',
     'Promise.webidl',
@@ -238,9 +240,7 @@ WEBIDL_FILES = [
     'HTMLTableCaptionElement.webidl',
     'HTMLTableCellElement.webidl',
     'HTMLTableColElement.webidl',
-    'HTMLTableElement.webidl',
     'HTMLTableRowElement.webidl',
-    'HTMLTableSectionElement.webidl',
     'HTMLTemplateElement.webidl',
     'HTMLTextAreaElement.webidl',
     'HTMLTimeElement.webidl',
