@@ -94,6 +94,10 @@ public:
   already_AddRefed<nsGenericHTMLElement> InsertRow(int32_t aIndex,
                                                    ErrorResult& aError);
   void DeleteRow(int32_t aIndex, ErrorResult& aError);
+#ifdef MOZ_MSIE_VERSION
+  already_AddRefed<nsGenericHTMLElement> MoveRow(int32_t aISource, int32_t aITarget,
+                                                   ErrorResult& aError);
+#endif
 
   void GetAlign(DOMString& aAlign)
   {
