@@ -2654,6 +2654,12 @@ public:
   {
     return GetWindow();
   }
+#ifdef MOZ_MSIE_VERSION
+  nsPIDOMWindowOuter* GetParentWindow() const
+  {
+    return GetWindow();
+  }
+#endif
   Element* GetActiveElement();
   bool HasFocus(mozilla::ErrorResult& rv) const;
   // Event handlers are all on nsINode already
