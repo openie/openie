@@ -354,6 +354,7 @@ GENERATED_WEBIDL_FILES = [
 ]
 
 PREPROCESSED_WEBIDL_FILES = [
+    'Document.webidl',
     'Element.webidl',
     'HTMLElement.webidl',
     'HTMLTableElement.webidl',
@@ -470,7 +471,6 @@ WEBIDL_FILES = [
     'DelayNode.webidl',
     'DeviceMotionEvent.webidl',
     'Directory.webidl',
-    'Document.webidl',
     'DocumentFragment.webidl',
     'DocumentOrShadowRoot.webidl',
     'DocumentTimeline.webidl',

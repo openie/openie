@@ -43,7 +43,11 @@ interface Document : Node {
   [Pure]
   readonly attribute DOMString contentType;
 
+#if defined(MOZ_MSIE_TARGET_8)
+  [ChromeOnly, Pure]
+#else
   [Pure]
+#endif
   readonly attribute DocumentType? doctype;
   [Pure]
   readonly attribute Element? documentElement;
@@ -142,8 +146,16 @@ partial interface Document {
   //(HTML only)void writeln(DOMString... text);
 
   // user interaction
+#if defined(MOZ_MSIE_TARGET_8)
+  [ChromeOnly, Pure]
+#else
   [Pure]
+#endif
   readonly attribute WindowProxy? defaultView;
+#ifdef MOZ_MSIE_VERSION
+  [Pure]
+  readonly attribute WindowProxy? parentWindow;
+#endif
   [Throws]
   boolean hasFocus();
   //(HTML only)         attribute DOMString designMode;
