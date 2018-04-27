@@ -39,8 +39,10 @@ interface Document : Node {
   [Pure]
   readonly attribute DOMString contentType;
 
+#if !defined(MOZ_MSIE_TARGET_8)
   [Pure]
   readonly attribute DocumentType? doctype;
+#endif
   [Pure]
   readonly attribute Element? documentElement;
   [Pure]
@@ -132,7 +134,12 @@ partial interface Document {
 
   // user interaction
   [Pure]
+#if !defined(MOZ_MSIE_TARGET_8)
   readonly attribute WindowProxy? defaultView;
+#endif
+#ifdef MOZ_MSIE_VERSION
+  readonly attribute WindowProxy? parentWindow;
+#endif
   readonly attribute Element? activeElement;
   [Throws]
   boolean hasFocus();

@@ -9,6 +9,7 @@ GENERATED_WEBIDL_FILES = [
 ]
 
 PREPROCESSED_WEBIDL_FILES = [
+    'Document.webidl',
     'Element.webidl',
     'HTMLElement.webidl',
     'HTMLTableElement.webidl',
@@ -114,7 +115,6 @@ WEBIDL_FILES = [
     'DesktopNotification.webidl',
     'DeviceMotionEvent.webidl',
     'Directory.webidl',
-    'Document.webidl',
     'DocumentFragment.webidl',
     'DocumentTimeline.webidl',
     'DocumentType.webidl',
