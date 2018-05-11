@@ -30,7 +30,11 @@ interface Document : Node {
   readonly attribute DOMString documentURI;
   [Pure]
   readonly attribute DOMString compatMode;
+#if defined(MOZ_MSIE_TARGET_8)
+  [ChromeOnly, Pure]
+#else
   [Pure]
+#endif
   readonly attribute DOMString characterSet;
   [Pure,BinaryName="characterSet"]
   readonly attribute DOMString charset; // legacy alias of .characterSet
