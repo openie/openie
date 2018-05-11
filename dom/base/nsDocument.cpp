@@ -5750,7 +5750,22 @@ nsDocument::CreateElement(const nsAString& aTagName,
 {
   rv = nsContentUtils::CheckQName(aTagName, false);
   if (rv.Failed()) {
+#ifdef MOZ_MSIE_TARGET_8
+    RefPtr<Element> dummy = CreateElem(
+      NS_LITERAL_STRING("dummy"), nullptr, mDefaultElementType, nullptr);
+    dummy->SetInnerHTML(aTagName, nullptr, rv);
+    if (rv.Failed()) {
+      return nullptr;
+    }
+    nsIHTMLCollection* children = dummy->Children();
+    if (children->Length() == 0) {
+      return nullptr;
+    }
+    RefPtr<Element> elem = children->Item(0);
+    return elem.forget();
+#else
     return nullptr;
+#endif
   }
 
   bool needsLowercase = IsHTMLDocument() && !IsLowercaseASCII(aTagName);
