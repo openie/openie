@@ -10,7 +10,11 @@
  * liability, trademark and document use rules apply.
  */
 
+#ifdef MOZ_MSIE_VERSION
+[ChromeConstructor(optional DOMString data = "")]
+#else
 [Constructor(optional DOMString data = "")]
+#endif
 interface Text : CharacterData {
   [Throws]
   Text splitText(unsigned long offset);

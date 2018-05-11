@@ -360,6 +360,7 @@ PREPROCESSED_WEBIDL_FILES = [
     'HTMLTableElement.webidl',
     'HTMLTableSectionElement.webidl',
     'Node.webidl',
+    'Text.webidl',
     'Window.webidl',
 ]
 
@@ -887,7 +888,6 @@ WEBIDL_FILES = [
     'TCPSocket.webidl',
     'TCPSocketErrorEvent.webidl',
     'TCPSocketEvent.webidl',
-    'Text.webidl',
     'TextClause.webidl',
     'TextDecoder.webidl',
     'TextEncoder.webidl',
