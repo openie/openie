@@ -18,6 +18,7 @@ PREPROCESSED_WEBIDL_FILES = [
     'Node.webidl',
     'Promise.webidl',
     'PromiseDebugging.webidl',
+    'Text.webidl',
     'Window.webidl',
 ]
 
@@ -525,7 +526,6 @@ WEBIDL_FILES = [
     'TCPSocket.webidl',
     'TCPSocketErrorEvent.webidl',
     'TCPSocketEvent.webidl',
-    'Text.webidl',
     'TextClause.webidl',
     'TextDecoder.webidl',
     'TextEncoder.webidl',

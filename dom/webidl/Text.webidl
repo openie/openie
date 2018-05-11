@@ -10,7 +10,9 @@
  * liability, trademark and document use rules apply.
  */
 
+#ifndef MOZ_MSIE_VERSION
 [Constructor(optional DOMString data = "")]
+#endif
 interface Text : CharacterData {
   [Throws]
   Text splitText(unsigned long offset);
