@@ -62,9 +62,17 @@ interface Element : Node {
   [Throws, Pure]
   Element? closest(DOMString selector);
 
+#ifdef MOZ_MSIE_VERSION
+  [ChromeOnly, Throws, Pure]
+#else
   [Throws, Pure]
+#endif
   boolean matches(DOMString selector);
+#ifdef MOZ_MSIE_VERSION
+  [ChromeOnly, Throws, Pure, BinaryName="matches"]
+#else
   [Throws, Pure, BinaryName="matches"]
+#endif
   boolean webkitMatchesSelector(DOMString selector);
 
   [Pure]
@@ -105,8 +113,10 @@ interface Element : Node {
    *
    * See <http://dev.w3.org/2006/webapi/selectors-api2/#matchesselector>
    */
+#ifndef MOZ_MSIE_VERSION
   [Throws, Pure, BinaryName="matches"]
   boolean mozMatchesSelector(DOMString selector);
+#endif
 
   // Pointer events methods.
   [Throws, Pref="dom.w3c_pointer_events.enabled", UnsafeInPrerendering]
