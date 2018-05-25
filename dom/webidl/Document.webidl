@@ -59,7 +59,11 @@ interface Document : Node {
   HTMLCollection getElementsByTagName(DOMString localName);
   [Pure, Throws]
   HTMLCollection getElementsByTagNameNS(DOMString? namespace, DOMString localName);
+#if defined(MOZ_MSIE_TARGET_8)
+  [ChromeOnly, Pure]
+#else
   [Pure]
+#endif
   HTMLCollection getElementsByClassName(DOMString classNames);
   [Pure]
   Element? getElementById(DOMString elementId);
