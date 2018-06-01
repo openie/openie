@@ -958,6 +958,11 @@ public:
   virtual bool CanClose() = 0;
   virtual void ForceClose() = 0;
 
+  bool IsModalContentWindow() const
+  {
+    return mIsModalContentWindow;
+  }
+
   /**
    * Moves the top-level window into fullscreen mode if aIsFullScreen is true,
    * otherwise exits fullscreen.
@@ -1181,6 +1186,10 @@ protected:
   nsCOMPtr<nsIDocShell> mDocShell;
 
   uint32_t mModalStateDepth;
+
+  // This variable is used on both inner and outer windows (and they
+  // should match).
+  bool                   mIsModalContentWindow;
 
   // Tracks activation state that's used for :-moz-window-inactive.
   bool mIsActive;

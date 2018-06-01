@@ -89,6 +89,37 @@ class IdleRequestExecutor;
 
 struct IdleObserverHolder;
 
+// Helper class to manage modal dialog arguments and all their quirks.
+//
+// Given our clunky embedding APIs, modal dialog arguments need to be passed
+// as an nsISupports parameter to WindowWatcher, get stuck inside an array of
+// length 1, and then passed back to the newly-created dialog.
+//
+// However, we need to track both the caller-passed value as well as the
+// caller's, so that we can do an origin check (even for primitives) when the
+// value is accessed. This class encapsulates that magic.
+//
+// We also use the same machinery for |returnValue|, which needs similar origin
+// checks.
+class DialogValueHolder final : public nsISupports
+{
+public:
+  NS_DECL_CYCLE_COLLECTING_ISUPPORTS
+  NS_DECL_CYCLE_COLLECTION_CLASS(DialogValueHolder)
+
+  DialogValueHolder(nsIPrincipal* aSubject, nsIVariant* aValue)
+    : mOrigin(aSubject)
+    , mValue(aValue) {}
+  nsresult Get(nsIPrincipal* aSubject, nsIVariant** aResult);
+  void Get(JSContext* aCx, JS::Handle<JSObject*> aScope, nsIPrincipal* aSubject,
+           JS::MutableHandle<JS::Value> aResult, mozilla::ErrorResult& aError);
+private:
+  virtual ~DialogValueHolder() {}
+
+  nsCOMPtr<nsIPrincipal> mOrigin;
+  nsCOMPtr<nsIVariant> mValue;
+};
+
 namespace mozilla {
 class AbstractThread;
 class DOMEventTargetHelper;
@@ -162,7 +193,7 @@ extern const js::Class OuterWindowProxyClass;
 // inner windows belonging to the same outer window, but that's an unimportant
 // side effect of inheriting PRCList).
 
-class nsGlobalWindowOuter final
+class nsGlobalWindowOuter /* final */
   : public mozilla::dom::EventTarget
   , public nsPIDOMWindowOuter
   , private nsIDOMWindow
@@ -368,6 +399,9 @@ public:
 
   already_AddRefed<nsPIDOMWindowOuter> IndexedGetterOuter(uint32_t aIndex);
 
+  static bool IsShowModalDialogEnabled(JSContext* /* unused */ = nullptr,
+                                       JSObject* /* unused */ = nullptr);
+
   already_AddRefed<nsPIDOMWindowOuter> GetTop() override;
   nsPIDOMWindowOuter* GetScriptableTop() override;
   inline nsGlobalWindowOuter *GetTopInternal();
@@ -435,6 +469,9 @@ public:
   {
     return mIsChrome;
   }
+
+  using nsPIDOMWindowOuter::IsModalContentWindow;
+  static bool IsModalContentWindow(JSContext* aCx, JSObject* aGlobal);
 
   // GetScrollFrame does not flush.  Callers should do it themselves as needed,
   // depending on which info they actually want off the scrollable frame.
@@ -615,6 +652,13 @@ public:
   int16_t Orientation(mozilla::dom::CallerType aCallerType) const;
 #endif
 
+  // Exposed only for testing
+  static bool
+  TokenizeDialogOptions(nsAString& aToken, nsAString::const_iterator& aIter,
+                        nsAString::const_iterator aEnd);
+  static void
+  ConvertDialogOptions(const nsAString& aOptions, nsAString& aResult);
+
 protected:
   bool AlertOrConfirm(bool aAlert, const nsAString& aMessage,
                       nsIPrincipal& aSubjectPrincipal,
@@ -713,21 +757,12 @@ public:
   void GetDialogArgumentsOuter(JSContext* aCx, JS::MutableHandle<JS::Value> aRetval,
                                nsIPrincipal& aSubjectPrincipal,
                                mozilla::ErrorResult& aError);
-  void GetDialogArguments(JSContext* aCx, JS::MutableHandle<JS::Value> aRetval,
-                          nsIPrincipal& aSubjectPrincipal,
-                          mozilla::ErrorResult& aError);
   void GetReturnValueOuter(JSContext* aCx, JS::MutableHandle<JS::Value> aReturnValue,
                            nsIPrincipal& aSubjectPrincipal,
                            mozilla::ErrorResult& aError);
-  void GetReturnValue(JSContext* aCx, JS::MutableHandle<JS::Value> aReturnValue,
-                      nsIPrincipal& aSubjectPrincipal,
-                      mozilla::ErrorResult& aError);
   void SetReturnValueOuter(JSContext* aCx, JS::Handle<JS::Value> aReturnValue,
                            nsIPrincipal& aSubjectPrincipal,
                            mozilla::ErrorResult& aError);
-  void SetReturnValue(JSContext* aCx, JS::Handle<JS::Value> aReturnValue,
-                      nsIPrincipal& aSubjectPrincipal,
-                      mozilla::ErrorResult& aError);
 
   already_AddRefed<nsWindowRoot> GetWindowRootOuter();
 
@@ -1020,6 +1055,12 @@ protected:
                            nsIPrincipal& aSubjectPrincipal,
                            mozilla::ErrorResult& aError);
 
+  already_AddRefed<nsIVariant>
+    ShowModalDialogOuter(const nsAString& aUrl, nsIVariant* aArgument,
+                         const nsAString& aOptions,
+                         nsIPrincipal& aSubjectPrincipal,
+                         mozilla::ErrorResult& aError);
+
   // Ask the user if further dialogs should be blocked, if dialogs are currently
   // being abused. This is used in the cases where we have no modifiable UI to
   // show, in that case we show a separate dialog to ask this question.
@@ -1097,6 +1138,12 @@ protected:
 
   // For |window.arguments|, via |openDialog|.
   nsCOMPtr<nsIArray>            mArguments;
+
+  // For |window.dialogArguments|, via |showModalDialog|.
+  RefPtr<DialogValueHolder> mDialogArguments;
+
+  // Only used in the outer.
+  RefPtr<DialogValueHolder> mReturnValue;
 
   RefPtr<nsDOMWindowList>     mFrames;
   RefPtr<nsDOMWindowUtils>      mWindowUtils;
@@ -1248,10 +1295,37 @@ nsGlobalWindowOuter::MaybeClearInnerWindow(nsGlobalWindowInner* aExpectedInner)
   }
 }
 
+/*
+ * nsGlobalModalWindow inherits from nsGlobalWindow. It is the global
+ * object created for a modal content windows only (i.e. not modal
+ * chrome dialogs).
+ */
+class nsGlobalModalWindow : public nsGlobalWindowOuter,
+                            public nsIDOMModalContentWindow
+{
+public:
+  NS_DECL_ISUPPORTS_INHERITED
+  NS_DECL_NSIDOMMODALCONTENTWINDOW
+
+  static already_AddRefed<nsGlobalModalWindow> Create(nsGlobalWindowOuter *aOuterWindow);
+
+protected:
+  explicit nsGlobalModalWindow(nsGlobalWindowOuter *aOuterWindow)
+    : nsGlobalWindowOuter()
+  {
+    mIsModalContentWindow = true;
+  }
+
+  ~nsGlobalModalWindow() {}
+};
+
 /* factory function */
 inline already_AddRefed<nsGlobalWindowOuter>
-NS_NewScriptGlobalObject(bool aIsChrome)
+NS_NewScriptGlobalObject(bool aIsChrome, bool aIsModalContentWindow)
 {
+  if (aIsModalContentWindow) {
+    return nsGlobalModalWindow::Create(nullptr);
+  }
   return nsGlobalWindowOuter::Create(aIsChrome);
 }
 

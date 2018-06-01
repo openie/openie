@@ -700,13 +700,6 @@ public:
                   mozilla::ErrorResult& aRv);
   already_AddRefed<mozilla::dom::External> GetExternal(mozilla::ErrorResult& aRv);
 
-  // Exposed only for testing
-  static bool
-  TokenizeDialogOptions(nsAString& aToken, nsAString::const_iterator& aIter,
-                        nsAString::const_iterator aEnd);
-  static void
-  ConvertDialogOptions(const nsAString& aOptions, nsAString& aResult);
-
   mozilla::dom::Worklet*
   GetAudioWorklet(mozilla::ErrorResult& aRv);
 
@@ -738,6 +731,12 @@ public:
                                                 mozilla::dom::CallerType aCallerType,
                                                 mozilla::ErrorResult& aRv);
   void Print(mozilla::ErrorResult& aError);
+  void ShowModalDialog(JSContext* aCx, const nsAString& aUrl,
+                       JS::Handle<JS::Value> aArgument,
+                       const nsAString& aOptions,
+                       JS::MutableHandle<JS::Value> aRetval,
+                       nsIPrincipal& aSubjectPrincipal,
+                       mozilla::ErrorResult& aError);
   void PostMessageMoz(JSContext* aCx, JS::Handle<JS::Value> aMessage,
                       const nsAString& aTargetOrigin,
                       const mozilla::dom::Sequence<JSObject*>& aTransfer,
@@ -1260,6 +1259,12 @@ protected:
                       JS::Handle<JS::Value> aTransfer,
                       nsIPrincipal& aSubjectPrincipal,
                       mozilla::ErrorResult& aError);
+
+  already_AddRefed<nsIVariant>
+    ShowModalDialog(const nsAString& aUrl, nsIVariant* aArgument,
+                    const nsAString& aOptions,
+                    nsIPrincipal& aSubjectPrincipal,
+                    mozilla::ErrorResult& aError);
 
 private:
   // Fire the JS engine's onNewGlobalObject hook.  Only used on inner windows.
