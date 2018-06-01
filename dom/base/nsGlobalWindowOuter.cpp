@@ -323,6 +323,41 @@ static LazyLogModule gDOMLeakPRLogOuter("DOMLeakOuter");
 
 static int32_t              gOpenPopupSpamCount               = 0;
 
+static already_AddRefed<nsIVariant>
+CreateVoidVariant()
+{
+  RefPtr<nsVariantCC> writable = new nsVariantCC();
+  writable->SetAsVoid();
+  return writable.forget();
+}
+
+nsresult
+DialogValueHolder::Get(nsIPrincipal* aSubject, nsIVariant** aResult)
+{
+  nsCOMPtr<nsIVariant> result;
+  if (aSubject->SubsumesConsideringDomain(mOrigin)) {
+    result = mValue;
+  } else {
+    result = CreateVoidVariant();
+  }
+  result.forget(aResult);
+  return NS_OK;
+}
+
+void
+DialogValueHolder::Get(JSContext* aCx, JS::Handle<JSObject*> aScope,
+                       nsIPrincipal* aSubject,
+                       JS::MutableHandle<JS::Value> aResult,
+                       mozilla::ErrorResult& aError)
+{
+  if (aSubject->Subsumes(mOrigin)) {
+    aError = nsContentUtils::XPConnect()->VariantToJS(aCx, aScope,
+                                                      mValue, aResult);
+  } else {
+    aResult.setUndefined();
+  }
+}
+
 nsGlobalWindowOuter::OuterWindowByIdTable *nsGlobalWindowOuter::sOuterWindowsById = nullptr;
 
 // CIDs
@@ -343,6 +378,16 @@ nsPIDOMWindowOuter::GetFromCurrentInner(nsPIDOMWindowInner* aInner)
 
   return outer;
 }
+
+// DialogValueHolder CC goop.
+NS_IMPL_CYCLE_COLLECTION(DialogValueHolder, mValue)
+
+NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION(DialogValueHolder)
+  NS_INTERFACE_MAP_ENTRY(nsISupports)
+NS_INTERFACE_MAP_END
+
+NS_IMPL_CYCLE_COLLECTING_ADDREF(DialogValueHolder)
+NS_IMPL_CYCLE_COLLECTING_RELEASE(DialogValueHolder)
 
 //*****************************************************************************
 // nsOuterWindowProxy: Outer Window Proxy
@@ -1064,6 +1109,7 @@ nsGlobalWindowOuter::CleanUp()
   }
 
   mArguments = nullptr;
+  mDialogArguments = nullptr;
 
   if (mIdleTimer) {
     mIdleTimer->Cancel();
@@ -1164,6 +1210,7 @@ NS_IMPL_CYCLE_COLLECTION_TRAVERSE_BEGIN_INTERNAL(nsGlobalWindowOuter)
 
   NS_IMPL_CYCLE_COLLECTION_TRAVERSE(mControllers)
   NS_IMPL_CYCLE_COLLECTION_TRAVERSE(mArguments)
+  NS_IMPL_CYCLE_COLLECTION_TRAVERSE(mDialogArguments)
 
   NS_IMPL_CYCLE_COLLECTION_TRAVERSE(mLocalStorage)
   NS_IMPL_CYCLE_COLLECTION_TRAVERSE(mSuspendedDoc)
@@ -1192,6 +1239,7 @@ NS_IMPL_CYCLE_COLLECTION_UNLINK_BEGIN(nsGlobalWindowOuter)
 
   NS_IMPL_CYCLE_COLLECTION_UNLINK(mControllers)
   NS_IMPL_CYCLE_COLLECTION_UNLINK(mArguments)
+  NS_IMPL_CYCLE_COLLECTION_UNLINK(mDialogArguments)
 
   NS_IMPL_CYCLE_COLLECTION_UNLINK(mLocalStorage)
   NS_IMPL_CYCLE_COLLECTION_UNLINK(mSuspendedDoc)
@@ -1821,7 +1869,12 @@ nsGlobalWindowOuter::SetNewDocument(nsIDocument* aDocument,
       newInnerWindow = wsh->GetInnerWindow();
       newInnerGlobal = newInnerWindow->GetWrapperPreserveColor();
     } else {
-      newInnerWindow = nsGlobalWindowInner::Create(this, thisChrome);
+      // TODO
+      // if (mIsModalContentWindow) {
+      //   newInnerWindow = nsGlobalModalWindow::Create(this);
+      // } else {
+        newInnerWindow = nsGlobalWindowInner::Create(this, thisChrome);
+      // }
 
       // The outer window is automatically treated as frozen when we
       // null out the inner window. As a result, initializing classes
@@ -2515,10 +2568,18 @@ nsGlobalWindowOuter::SetArguments(nsIArray *aArguments)
   //
   // So we need to demultiplex the two cases here.
   nsGlobalWindowInner *currentInner = GetCurrentInnerWindowInternal();
-
-  mArguments = aArguments;
-  rv = currentInner->DefineArgumentsProperty(aArguments);
-  NS_ENSURE_SUCCESS(rv, rv);
+  if (mIsModalContentWindow) {
+    // nsWindowWatcher blindly converts the original nsISupports into an array
+    // of length 1. We need to recover it, and then cast it back to the concrete
+    // object we know it to be.
+    nsCOMPtr<nsISupports> supports = do_QueryElementAt(aArguments, 0, &rv);
+    NS_ENSURE_SUCCESS(rv, rv);
+    mDialogArguments = static_cast<DialogValueHolder*>(supports.get());
+  } else {
+    mArguments = aArguments;
+    rv = currentInner->DefineArgumentsProperty(aArguments);
+    NS_ENSURE_SUCCESS(rv, rv);
+  }
 
   return NS_OK;
 }
@@ -3000,6 +3061,21 @@ nsGlobalWindowOuter::IndexedGetterOuter(uint32_t aIndex)
   NS_ENSURE_TRUE(windows, nullptr);
 
   return windows->IndexedGetter(aIndex);
+}
+
+/* static */ bool
+nsGlobalWindowOuter::IsShowModalDialogEnabled(JSContext*, JSObject*)
+{
+  static bool sAddedPrefCache = false;
+  static bool sIsDisabled;
+  static const char sShowModalDialogPref[] = "dom.disable_window_showModalDialog";
+
+  if (!sAddedPrefCache) {
+    Preferences::AddBoolVarCache(&sIsDisabled, sShowModalDialogPref, false);
+    sAddedPrefCache = true;
+  }
+
+  return !sIsDisabled && !XRE_IsContentProcess();
 }
 
 nsIControllers*
@@ -4631,6 +4707,131 @@ nsGlobalWindowOuter::CanMoveResizeWindows(CallerType aCallerType)
     }
   }
   return true;
+}
+
+/* static */ bool
+nsGlobalWindowOuter::TokenizeDialogOptions(nsAString& aToken,
+                                           nsAString::const_iterator& aIter,
+                                           nsAString::const_iterator aEnd)
+{
+  while (aIter != aEnd && nsCRT::IsAsciiSpace(*aIter)) {
+    ++aIter;
+  }
+
+  if (aIter == aEnd) {
+    return false;
+  }
+
+  if (*aIter == ';' || *aIter == ':' || *aIter == '=') {
+    aToken.Assign(*aIter);
+    ++aIter;
+    return true;
+  }
+
+  nsAString::const_iterator start = aIter;
+
+  // Skip characters until we find whitespace, ';', ':', or '='
+  while (aIter != aEnd && !nsCRT::IsAsciiSpace(*aIter) &&
+         *aIter != ';' &&
+         *aIter != ':' &&
+         *aIter != '=') {
+    ++aIter;
+  }
+
+  aToken.Assign(Substring(start, aIter));
+  return true;
+}
+
+// Helper for converting window.showModalDialog() options (list of ';'
+// separated name (:|=) value pairs) to a format that's parsable by
+// our normal window opening code.
+
+/* static */
+void
+nsGlobalWindowOuter::ConvertDialogOptions(const nsAString& aOptions,
+                                          nsAString& aResult)
+{
+  nsAString::const_iterator end;
+  aOptions.EndReading(end);
+
+  nsAString::const_iterator iter;
+  aOptions.BeginReading(iter);
+
+  nsAutoString token;
+  nsAutoString name;
+  nsAutoString value;
+
+  while (true) {
+    if (!TokenizeDialogOptions(name, iter, end)) {
+      break;
+    }
+
+    // Invalid name.
+    if (name.EqualsLiteral("=") ||
+        name.EqualsLiteral(":") ||
+        name.EqualsLiteral(";")) {
+      break;
+    }
+
+    if (!TokenizeDialogOptions(token, iter, end)) {
+      break;
+    }
+
+    if (!token.EqualsLiteral(":") && !token.EqualsLiteral("=")) {
+      continue;
+    }
+
+    // We found name followed by ':' or '='. Look for a value.
+    if (!TokenizeDialogOptions(value, iter, end)) {
+      break;
+    }
+
+    if (name.LowerCaseEqualsLiteral("center")) {
+      if (value.LowerCaseEqualsLiteral("on")  ||
+          value.LowerCaseEqualsLiteral("yes") ||
+          value.LowerCaseEqualsLiteral("1")) {
+        aResult.AppendLiteral(",centerscreen=1");
+      }
+    } else if (name.LowerCaseEqualsLiteral("dialogwidth")) {
+      if (!value.IsEmpty()) {
+        aResult.AppendLiteral(",width=");
+        aResult.Append(value);
+      }
+    } else if (name.LowerCaseEqualsLiteral("dialogheight")) {
+      if (!value.IsEmpty()) {
+        aResult.AppendLiteral(",height=");
+        aResult.Append(value);
+      }
+    } else if (name.LowerCaseEqualsLiteral("dialogtop")) {
+      if (!value.IsEmpty()) {
+        aResult.AppendLiteral(",top=");
+        aResult.Append(value);
+      }
+    } else if (name.LowerCaseEqualsLiteral("dialogleft")) {
+      if (!value.IsEmpty()) {
+        aResult.AppendLiteral(",left=");
+        aResult.Append(value);
+      }
+    } else if (name.LowerCaseEqualsLiteral("resizable")) {
+      if (value.LowerCaseEqualsLiteral("on")  ||
+          value.LowerCaseEqualsLiteral("yes") ||
+          value.LowerCaseEqualsLiteral("1")) {
+        aResult.AppendLiteral(",resizable=1");
+      }
+    } else if (name.LowerCaseEqualsLiteral("scroll")) {
+      if (value.LowerCaseEqualsLiteral("off")  ||
+          value.LowerCaseEqualsLiteral("no") ||
+          value.LowerCaseEqualsLiteral("0")) {
+        aResult.AppendLiteral(",scrollbars=0");
+      }
+    }
+
+    if (iter == end ||
+        !TokenizeDialogOptions(token, iter, end) ||
+        !token.EqualsLiteral(";")) {
+      break;
+    }
+  }
 }
 
 bool
@@ -6315,6 +6516,81 @@ nsGlobalWindowOuter::GetFrameElement()
   FORWARD_TO_INNER(GetFrameElement, (), nullptr);
 }
 
+already_AddRefed<nsIVariant>
+nsGlobalWindowOuter::ShowModalDialogOuter(const nsAString& aUrl,
+                                     nsIVariant* aArgument,
+                                     const nsAString& aOptions,
+                                     nsIPrincipal& aSubjectPrincipal,
+                                     ErrorResult& aError)
+{
+  // MOZ_RELEASE_ASSERT(IsOuterWindow());
+
+  if (mDoc) {
+    mDoc->WarnOnceAbout(nsIDocument::eShowModalDialog);
+  }
+
+  if (!IsShowModalDialogEnabled()) {
+    aError.Throw(NS_ERROR_NOT_AVAILABLE);
+    return nullptr;
+  }
+
+  RefPtr<DialogValueHolder> argHolder =
+    new DialogValueHolder(&aSubjectPrincipal, aArgument);
+
+  // Before bringing up the window/dialog, unsuppress painting and flush
+  // pending reflows.
+  EnsureReflowFlushAndPaint();
+
+  if (!AreDialogsEnabled()) {
+    // We probably want to keep throwing here; silently doing nothing is a bit
+    // weird given the typical use cases of showModalDialog().
+    aError.Throw(NS_ERROR_NOT_AVAILABLE);
+    return nullptr;
+  }
+
+  if (ShouldPromptToBlockDialogs() && !ConfirmDialogIfNeeded()) {
+    aError.Throw(NS_ERROR_NOT_AVAILABLE);
+    return nullptr;
+  }
+
+  nsCOMPtr<nsPIDOMWindowOuter> dlgWin;
+ nsAutoString options(NS_LITERAL_STRING("-moz-internal-modal=1,status=1"));
+
+  ConvertDialogOptions(aOptions, options);
+
+  options.AppendLiteral(",scrollbars=1,centerscreen=1,resizable=0");
+
+  EnterModalState();
+  uint32_t oldMicroTaskLevel = CycleCollectedJSContext::Get()->MicroTaskLevel();
+  CycleCollectedJSContext::Get()->SetMicroTaskLevel(0);
+  aError = OpenInternal(aUrl, EmptyString(), options,
+                        false,          // aDialog
+                        true,           // aContentModal
+                        true,           // aCalledNoScript
+                        true,           // aDoJSFixups
+                        true,           // aNavigate
+                        nullptr, argHolder, // args
+                        nullptr,        // aLoadInfo
+                        false,          // aForceNoOpener
+                        getter_AddRefs(dlgWin));
+  CycleCollectedJSContext::Get()->SetMicroTaskLevel(oldMicroTaskLevel);
+  LeaveModalState();
+  if (aError.Failed()) {
+    return nullptr;
+  }
+
+  nsCOMPtr<nsIDOMModalContentWindow> dialog = do_QueryInterface(dlgWin);
+  if (!dialog) {
+    return nullptr;
+  }
+
+  nsCOMPtr<nsIVariant> retVal;
+  aError = dialog->GetReturnValue(getter_AddRefs(retVal));
+  MOZ_ASSERT(!aError.Failed());
+
+  return retVal.forget();
+}
+
 namespace {
 class ChildCommandDispatcher : public Runnable
 {
@@ -7580,10 +7856,124 @@ nsPIDOMWindowOuter::TakeOpenerForInitialContentBrowser()
   return mOpenerForInitialContentBrowser.forget();
 }
 
+// nsGlobalModalWindow implementation
+
+// QueryInterface implementation for nsGlobalModalWindow
+NS_INTERFACE_MAP_BEGIN(nsGlobalModalWindow)
+  NS_INTERFACE_MAP_ENTRY(nsIDOMModalContentWindow)
+NS_INTERFACE_MAP_END_INHERITING(nsGlobalWindowOuter)
+
+NS_IMPL_ADDREF_INHERITED(nsGlobalModalWindow, nsGlobalWindowOuter)
+NS_IMPL_RELEASE_INHERITED(nsGlobalModalWindow, nsGlobalWindowOuter)
+
+
+void
+nsGlobalWindowOuter::GetDialogArgumentsOuter(JSContext* aCx,
+                                        JS::MutableHandle<JS::Value> aRetval,
+                                        nsIPrincipal& aSubjectPrincipal,
+                                        ErrorResult& aError)
+{
+  // MOZ_RELEASE_ASSERT(IsOuterWindow());
+  MOZ_ASSERT(IsModalContentWindow(),
+             "This should only be called on modal windows!");
+
+  if (!mDialogArguments) {
+    MOZ_ASSERT(mIsClosed, "This window should be closed!");
+    aRetval.setUndefined();
+    return;
+  }
+
+  // This does an internal origin check, and returns undefined if the subject
+  // does not subsumes the origin of the arguments.
+  JS::Rooted<JSObject*> wrapper(aCx, GetWrapper());
+  JSAutoCompartment ac(aCx, wrapper);
+  mDialogArguments->Get(aCx, wrapper, &aSubjectPrincipal, aRetval, aError);
+}
+
+/* static */ already_AddRefed<nsGlobalModalWindow>
+nsGlobalModalWindow::Create(nsGlobalWindowOuter *aOuterWindow)
+{
+  RefPtr<nsGlobalModalWindow> window = new nsGlobalModalWindow(aOuterWindow);
+  window->InitWasOffline();
+  return window.forget();
+}
+
+NS_IMETHODIMP
+nsGlobalModalWindow::GetDialogArguments(nsIVariant **aArguments)
+{
+  // This does an internal origin check, and returns undefined if the subject
+  // does not subsumes the origin of the arguments.
+  return mDialogArguments->Get(nsContentUtils::SubjectPrincipal(), aArguments);
+}
+
 void
 nsGlobalWindowOuter::InitWasOffline()
 {
   mWasOffline = NS_IsOffline();
+}
+
+void
+nsGlobalWindowOuter::GetReturnValueOuter(JSContext* aCx,
+                                    JS::MutableHandle<JS::Value> aReturnValue,
+                                    nsIPrincipal& aSubjectPrincipal,
+                                    ErrorResult& aError)
+{
+  // MOZ_RELEASE_ASSERT(IsOuterWindow());
+  MOZ_ASSERT(IsModalContentWindow(),
+             "This should only be called on modal windows!");
+
+  if (mReturnValue) {
+    JS::Rooted<JSObject*> wrapper(aCx, GetWrapper());
+    JSAutoCompartment ac(aCx, wrapper);
+    mReturnValue->Get(aCx, wrapper, &aSubjectPrincipal, aReturnValue, aError);
+  } else {
+    aReturnValue.setUndefined();
+  }
+}
+
+NS_IMETHODIMP
+nsGlobalModalWindow::GetReturnValue(nsIVariant **aRetVal)
+{
+  if (!mReturnValue) {
+    nsCOMPtr<nsIVariant> variant = CreateVoidVariant();
+    variant.forget(aRetVal);
+    return NS_OK;
+  }
+  return mReturnValue->Get(nsContentUtils::SubjectPrincipal(), aRetVal);
+}
+
+void
+nsGlobalWindowOuter::SetReturnValueOuter(JSContext* aCx,
+                                    JS::Handle<JS::Value> aReturnValue,
+                                    nsIPrincipal& aSubjectPrincipal,
+                                    ErrorResult& aError)
+{
+  // MOZ_RELEASE_ASSERT(IsOuterWindow());
+  MOZ_ASSERT(IsModalContentWindow(),
+             "This should only be called on modal windows!");
+
+  nsCOMPtr<nsIVariant> returnValue;
+  aError =
+    nsContentUtils::XPConnect()->JSToVariant(aCx, aReturnValue,
+                                             getter_AddRefs(returnValue));
+  if (!aError.Failed()) {
+    mReturnValue = new DialogValueHolder(&aSubjectPrincipal, returnValue);
+  }
+}
+
+NS_IMETHODIMP
+nsGlobalModalWindow::SetReturnValue(nsIVariant *aRetVal)
+{
+  mReturnValue = new DialogValueHolder(nsContentUtils::SubjectPrincipal(),
+                                       aRetVal);
+  return NS_OK;
+}
+
+/* static */
+bool
+nsGlobalWindowOuter::IsModalContentWindow(JSContext* aCx, JSObject* aGlobal)
+{
+  return xpc::WindowOrNull(aGlobal)->GetOuterWindow()->IsModalContentWindow();
 }
 
 #if defined(MOZ_WIDGET_ANDROID)
@@ -7857,6 +8247,7 @@ NextWindowID();
 
 nsPIDOMWindowOuter::nsPIDOMWindowOuter()
 : mFrameElement(nullptr), mDocShell(nullptr), mModalStateDepth(0),
+  mIsModalContentWindow(false),
   mIsActive(false), mIsBackground(false),
   mMediaSuspend(
     Preferences::GetBool("media.block-autoplay-until-in-foreground", true) &&

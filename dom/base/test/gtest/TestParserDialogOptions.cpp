@@ -27,7 +27,7 @@ void runTokenizeTest(dialog_test& test)
   nsAutoString result;
   nsAutoString token;
 
-  while (nsGlobalWindowInner::TokenizeDialogOptions(token, iter, end)) {
+  while (nsGlobalWindowOuter::TokenizeDialogOptions(token, iter, end)) {
     if (!result.IsEmpty()) {
       result.Append(',');
     }
@@ -43,7 +43,7 @@ void runTest(dialog_test& test)
   NS_ConvertUTF8toUTF16 input(test.input);
 
   nsAutoString result;
-  nsGlobalWindowInner::ConvertDialogOptions(input, result);
+  nsGlobalWindowOuter::ConvertDialogOptions(input, result);
 
   ASSERT_STREQ(test.output, NS_ConvertUTF16toUTF8(result).get()) << "Testing " << test.input;
 }
