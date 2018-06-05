@@ -1537,8 +1537,13 @@ pref("privacy.userContext.longPressBehavior", 0);
 pref("privacy.userContext.extension", "");
 
 // Start the browser in e10s mode
+#ifdef MOZ_MSIE_VERSION
+pref("browser.tabs.remote.autostart", false);
+pref("browser.tabs.remote.desktopbehavior", false);
+#else
 pref("browser.tabs.remote.autostart", true);
 pref("browser.tabs.remote.desktopbehavior", true);
+#endif
 
 // For speculatively warming up tabs to improve perceived
 // performance while using the async tab switcher.
