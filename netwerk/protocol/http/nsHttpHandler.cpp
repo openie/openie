@@ -232,7 +232,7 @@ nsHttpHandler::nsHttpHandler()
     , mLastUniqueID(NowInSeconds())
     , mSessionStartTime(0)
     , mLegacyAppName("Mozilla")
-#ifdef MOZ_MSIE_VERSION
+#ifdef MOZ_MSIE_TARGET_8
     , mLegacyAppVersion("4.0")
 #else
     , mLegacyAppVersion("5.0")
@@ -938,8 +938,14 @@ nsHttpHandler::BuildUserAgent()
 
     // Application comment
     mUserAgent += '(';
-#ifdef MOZ_MSIE_VERSION
+#ifdef MOZ_MSIE_TARGET_8
     mUserAgent.AppendLiteral("compatible; MSIE 8.0; ");
+#endif
+#ifdef MOZ_MSIE_TARGET_9
+    mUserAgent.AppendLiteral("compatible; MSIE 9.0; ");
+#endif
+#ifdef MOZ_MSIE_TARGET_10
+    mUserAgent.AppendLiteral("compatible; MSIE 10.0; ");
 #endif
 #ifndef UA_SPARE_PLATFORM
     if (!mPlatform.IsEmpty()) {
@@ -959,13 +965,22 @@ nsHttpHandler::BuildUserAgent()
         mUserAgent += mDeviceModelId;
         mUserAgent.AppendLiteral("; ");
     }
-#ifdef MOZ_MSIE_VERSION
+#if defined(MOZ_MSIE_TARGET_8)
     mUserAgent.AppendLiteral("Trident/4.0");
+#elif defiend(MOZ_MSIE_TARGET_9)
+    mUserAgent.AppendLiteral("Trident/5.0");
+#elif defined(MOZ_MSIE_TARGET_10)
+    mUserAgent.AppendLiteral("Trident/6.0");
+#elif defined(MOZ_MSIE_TARGET_11)
+    mUserAgent.AppendLiteral("Trident/7.0; rv:11.0");
 #else
     mUserAgent += mMisc;
 #endif
     mUserAgent += ')';
 
+#ifdef MOZ_MSIE_TARGET_11
+    mUserAgent.AppendLiteral(" like Gecko");
+#endif
 #ifdef MOZ_MSIE_VERSION
     mUserAgent.AppendLiteral(" OpenIE/0.1");
 #else
