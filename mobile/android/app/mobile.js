@@ -238,7 +238,11 @@ pref("privacy.popups.showBrowserMessage", true);
 
 /* disable opening windows with the dialog feature */
 pref("dom.disable_window_open_dialog_feature", true);
+#ifdef MOZ_MSIE_VERSION
+pref("dom.disable_window_showModalDialog", false);
+#else
 pref("dom.disable_window_showModalDialog", true);
+#endif
 pref("dom.disable_window_print", true);
 pref("dom.disable_window_find", true);
 
