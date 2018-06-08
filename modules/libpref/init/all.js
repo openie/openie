@@ -1286,7 +1286,11 @@ pref("dom.disable_window_open_feature.menubar",     false);
 pref("dom.disable_window_open_feature.resizable",   true);
 pref("dom.disable_window_open_feature.minimizable", false);
 pref("dom.disable_window_open_feature.status",      true);
+#ifdef MOZ_MSIE_VERSION
+pref("dom.disable_window_showModalDialog",          false);
+#else
 pref("dom.disable_window_showModalDialog",          true);
+#endif
 
 pref("dom.allow_scripts_to_close_windows",          false);
 
