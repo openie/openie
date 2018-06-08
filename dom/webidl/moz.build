@@ -354,6 +354,7 @@ GENERATED_WEBIDL_FILES = [
 ]
 
 PREPROCESSED_WEBIDL_FILES = [
+    'Comment.webidl',
     'Document.webidl',
     'Element.webidl',
     'HTMLElement.webidl',
@@ -425,7 +426,6 @@ WEBIDL_FILES = [
     'Clients.webidl',
     'ClipboardEvent.webidl',
     'CommandEvent.webidl',
-    'Comment.webidl',
     'CompositionEvent.webidl',
     'Console.webidl',
     'ConstantSourceNode.webidl',

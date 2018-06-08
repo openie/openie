@@ -68,7 +68,12 @@ public:
   static already_AddRefed<Comment>
   Constructor(const GlobalObject& aGlobal, const nsAString& aData,
               ErrorResult& aRv);
-
+#ifdef MOZ_MSIE_TARGET_8
+  void GetTagName(nsAString& aTagName) const
+  {
+    aTagName = NS_LITERAL_STRING("!");
+  }
+#endif
 protected:
   virtual JSObject* WrapNode(JSContext *aCx, JS::Handle<JSObject*> aGivenProto) override;
 };

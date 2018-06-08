@@ -12,4 +12,8 @@
 
 [Constructor(optional DOMString data = "")]
 interface Comment : CharacterData {
+#ifdef MOZ_MSIE_TARGET_8
+  [Pure]
+  readonly attribute DOMString tagName;
+#endif
 };
