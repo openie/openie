@@ -947,6 +947,9 @@ nsHttpHandler::BuildUserAgent()
 #ifdef MOZ_MSIE_TARGET_10
     mUserAgent.AppendLiteral("compatible; MSIE 10.0; ");
 #endif
+#ifdef MOZ_MSIE_VERSION
+    mUserAgent.AppendLiteral("Windows NT 6.1; ");
+#else
 #ifndef UA_SPARE_PLATFORM
     if (!mPlatform.IsEmpty()) {
       mUserAgent += mPlatform;
@@ -965,6 +968,7 @@ nsHttpHandler::BuildUserAgent()
         mUserAgent += mDeviceModelId;
         mUserAgent.AppendLiteral("; ");
     }
+#endif
 #if defined(MOZ_MSIE_TARGET_8)
     mUserAgent.AppendLiteral("Trident/4.0");
 #elif defiend(MOZ_MSIE_TARGET_9)
